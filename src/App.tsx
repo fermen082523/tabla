@@ -6,7 +6,7 @@ import { usePlates } from './hooks/usePlates';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const { plates, savePlates, deletePlate, refresh, loading } = usePlates();
+  const { plates, savePlates, deletePlate, deletePlates, refresh, loading } = usePlates();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -55,6 +55,7 @@ function App() {
               plates={plates} 
               onPlatesChange={savePlates} 
               onDelete={deletePlate}
+              onDeleteMultiple={deletePlates}
               onRefresh={refresh}
             />
           )}

@@ -55,5 +55,20 @@ export const usePlates = () => {
     }
   };
 
-  return { plates, setPlates, loading, savePlates, deletePlate, refresh: fetchPlates };
+  const deletePlates = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    
+    const { error } = await supabase
+      .from('plates')
+      .delete()
+      .in('id', ids);
+
+    if (error) {
+      console.error('Error deleting plates:', error);
+    } else {
+      setPlates(plates.filter(p => !ids.includes(p.id)));
+    }
+  };
+
+  return { plates, setPlates, loading, savePlates, deletePlate, deletePlates, refresh: fetchPlates };
 };

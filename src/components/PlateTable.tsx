@@ -23,6 +23,7 @@ interface PlateTableProps {
   plates: Plate[];
   onPlatesChange: (newPlates: Plate[]) => void;
   onDelete: (id: string) => void;
+  onDeleteMultiple: (ids: string[]) => void;
   onRefresh: () => void;
 }
 
@@ -138,7 +139,7 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
   );
 };
 
-export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, onDelete, onRefresh }) => {
+export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, onDelete, onDeleteMultiple, onRefresh }) => {
   const [newPlate, setNewPlate] = useState('');
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -184,6 +185,16 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
     setBulkTag('');
   };
 
+  const handleDeleteVisible = () => {
+    if (filteredPlates.length === 0) return;
+    const confirmMessage = filteredPlates.length === plates.length 
+      ? `¿Estás seguro de que quieres borrar TODAS las placas (${plates.length})?`
+      : `¿Estás seguro de que quieres borrar las ${filteredPlates.length} placas visibles actualmente?`;
+    if (window.confirm(confirmMessage)) {
+      onDeleteMultiple(filteredPlates.map(p => p.id));
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -200,11 +211,9 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
     if (lines.length > 0) {
       const duplicates: string[] = [];
       const toAdd: Plate[] = [];
-      
       lines.forEach((line) => {
         const plateNum = line.trim().toUpperCase();
         const existing = plates.find(p => p.plate_number === plateNum);
-        
         if (existing) {
           const tagInfo = existing.tags.length > 0 ? ` (Etiqueta: ${existing.tags[0]})` : ' (Sin etiqueta)';
           duplicates.push(`${plateNum}${tagInfo}`);
@@ -218,11 +227,9 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
           });
         }
       });
-
       if (toAdd.length > 0) {
         onPlatesChange([...plates, ...toAdd]);
       }
-
       let message = `✅ Se han añadido ${toAdd.length} placas nuevas.`;
       if (duplicates.length > 0) {
         message += `\n\n⚠️ Se ignoraron ${duplicates.length} duplicadas:\n${duplicates.join('\n')}`;
@@ -292,16 +299,26 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
       </div>
 
       <div className="bulk-actions no-select">
-        <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Etiquetado Masivo:</span>
-        <input 
-          type="text" 
-          placeholder="Etiqueta para todas las visibles..." 
-          value={bulkTag}
-          onChange={(e) => setBulkTag(e.target.value)}
-          style={{ flex: 1, padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
-        />
-        <button onClick={handleApplyBulkTag} style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
-          Aplicar a {filteredPlates.length}
+        <div style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Etiquetado Masivo:</span>
+          <input 
+            type="text" 
+            placeholder="Etiqueta para todas las visibles..." 
+            value={bulkTag}
+            onChange={(e) => setBulkTag(e.target.value)}
+            style={{ flex: 1, padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+          />
+          <button onClick={handleApplyBulkTag} style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
+            Aplicar
+          </button>
+        </div>
+        
+        <button 
+          onClick={handleDeleteVisible} 
+          style={{ background: '#ef4444', padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+          title="Borrar todas las placas que se ven actualmente"
+        >
+          <Trash2 size={16} /> Borrar Visibles ({filteredPlates.length})
         </button>
       </div>
 
