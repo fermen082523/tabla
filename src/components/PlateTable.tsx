@@ -24,6 +24,7 @@ interface PlateTableProps {
   onPlatesChange: (newPlates: Plate[]) => void;
   onDelete: (id: string) => void;
   onDeleteMultiple: (ids: string[]) => void;
+  onUpdateMultiple: (updates: Partial<Plate>[], ids: string[]) => void;
   onRefresh: () => void;
 }
 
@@ -139,12 +140,13 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
   );
 };
 
-export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, onDelete, onDeleteMultiple, onRefresh }) => {
+export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, onDelete, onDeleteMultiple, onUpdateMultiple, onRefresh }) => {
   const [newPlate, setNewPlate] = useState('');
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tagFilterMode, setTagFilterMode] = useState<'all' | 'no-tag'>('all');
   const [bulkTag, setBulkTag] = useState('');
+  const [bulkStatus, setBulkStatus] = useState<PlateStatus>('pendiente');
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -183,6 +185,12 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
     });
     onPlatesChange(updated);
     setBulkTag('');
+  };
+
+  const handleApplyBulkStatus = () => {
+    if (filteredPlates.length === 0) return;
+    const updates = filteredPlates.map(() => ({ status: bulkStatus }));
+    onUpdateMultiple(updates, filteredPlates.map(p => p.id));
   };
 
   const handleDeleteVisible = () => {
@@ -299,18 +307,36 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
       </div>
 
       <div className="bulk-actions no-select">
-        <div style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Etiquetado Masivo:</span>
-          <input 
-            type="text" 
-            placeholder="Etiqueta para todas las visibles..." 
-            value={bulkTag}
-            onChange={(e) => setBulkTag(e.target.value)}
-            style={{ flex: 1, padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
-          />
-          <button onClick={handleApplyBulkTag} style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
-            Aplicar
-          </button>
+        <div style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Etiqueta:</span>
+            <input 
+              type="text" 
+              placeholder="Nueva..." 
+              value={bulkTag}
+              onChange={(e) => setBulkTag(e.target.value)}
+              style={{ width: '100px', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+            />
+            <button onClick={handleApplyBulkTag} style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
+              Aplicar
+            </button>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', borderLeft: '1px solid #cbd5e1', paddingLeft: '1rem' }}>
+            <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Estado:</span>
+            <select 
+              value={bulkStatus} 
+              onChange={(e) => setBulkStatus(e.target.value as PlateStatus)}
+              style={{ padding: '0.25rem', fontSize: '0.875rem' }}
+            >
+              <option value="pendiente">Pendiente</option>
+              <option value="completada">OK</option>
+              <option value="error">Error</option>
+            </select>
+            <button onClick={handleApplyBulkStatus} style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
+              Aplicar
+            </button>
+          </div>
         </div>
         
         <button 

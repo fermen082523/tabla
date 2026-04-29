@@ -26,8 +26,6 @@ export const usePlates = () => {
   }, []);
 
   const savePlates = async (newPlates: Plate[]) => {
-    // Para simplificar y dado que solo son 2 personas, podemos hacer un upsert.
-    // Ojo: En un entorno real esto requeriría más cuidado con los conflictos.
     const { error } = await supabase
       .from('plates')
       .upsert(newPlates.map(p => ({
@@ -39,6 +37,29 @@ export const usePlates = () => {
       console.error('Error saving plates:', error);
     } else {
       setPlates(newPlates);
+    }
+  };
+
+  const updateMultiplePlates = async (updates: Partial<Plate>[], ids: string[]) => {
+    if (ids.length === 0) return;
+    
+    // Para simplificar en la capa gratuita, usamos upsert con los datos actuales actualizados
+    const updatedPlates = plates.map(p => {
+      if (ids.includes(p.id)) {
+        const update = updates.find((_, index) => ids[index] === p.id) || updates[0];
+        return { ...p, ...update, updated_at: new Date().toISOString() };
+      }
+      return p;
+    });
+
+    const { error } = await supabase
+      .from('plates')
+      .upsert(updatedPlates.filter(p => ids.includes(p.id)));
+
+    if (error) {
+      console.error('Error updating multiple plates:', error);
+    } else {
+      setPlates(updatedPlates);
     }
   };
 
@@ -70,5 +91,5 @@ export const usePlates = () => {
     }
   };
 
-  return { plates, setPlates, loading, savePlates, deletePlate, deletePlates, refresh: fetchPlates };
+  return { plates, setPlates, loading, savePlates, deletePlate, deletePlates, updateMultiplePlates, refresh: fetchPlates };
 };
