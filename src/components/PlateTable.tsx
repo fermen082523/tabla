@@ -104,15 +104,18 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
           </button>
         </div>
       </td>
-      <td style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{plate.plate_number}</td>
-      <td>
+      <td className="plate-number-text" style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+        {plate.plate_number}
+      </td>
+      <td className="no-select">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
           {plate.tags.map((tag: string, i: number) => (
-            <span key={i} style={getTagStyle(tag)}>{tag}</span>
+            <span key={i} className="no-select" style={getTagStyle(tag)}>{tag}</span>
           ))}
         </div>
         <input
           type="text"
+          className="no-select"
           defaultValue={plate.tags.join(', ')}
           onBlur={(e) => onUpdateTags(plate.id, e.target.value)}
           placeholder="Etiquetas (C, K...)"

@@ -61,7 +61,16 @@ table {
 .plate-table td {
   padding: 0.5rem;
   border-bottom: 1px solid var(--border-color);
-  user-select: text; /* Permite seleccionar el texto de la placa con el ratón */
+  user-select: none; /* Desactiva selección por defecto en la celda */
+}
+
+.plate-number-text {
+  user-select: text; /* Solo el número de la placa es seleccionable */
+  cursor: text;
+}
+
+.plate-table input, .plate-table select, .plate-table button {
+  user-select: none;
 }
 
 .plate-table th {
