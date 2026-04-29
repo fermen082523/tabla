@@ -47,14 +47,6 @@ const getTagStyle = (tag: string) => {
   };
 };
 
-const StatusIcon = ({ status }: { status: PlateStatus }) => {
-  switch (status) {
-    case 'completada': return <CheckCircle2 size={18} color="#10b981" />;
-    case 'error': return <AlertCircle size={18} color="#ef4444" />;
-    default: return <Circle size={18} color="#94a3b8" />;
-  }
-};
-
 const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: plate.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -67,17 +59,49 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
         </div>
       </td>
       <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <StatusIcon status={plate.status} />
-          <select 
-            value={plate.status || 'pendiente'} 
-            onChange={(e) => onUpdateStatus(plate.id, e.target.value as PlateStatus)}
-            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => onUpdateStatus(plate.id, 'pendiente')}
+            title="Pendiente"
+            style={{ 
+              background: 'none', 
+              padding: '4px',
+              border: plate.status === 'pendiente' ? '1px solid #94a3b8' : '1px solid transparent',
+              borderRadius: '4px',
+              display: 'flex',
+              opacity: plate.status === 'pendiente' ? 1 : 0.3
+            }}
           >
-            <option value="pendiente">Pendiente</option>
-            <option value="completada">OK</option>
-            <option value="error">Error</option>
-          </select>
+            <Circle size={18} color="#94a3b8" />
+          </button>
+          <button
+            onClick={() => onUpdateStatus(plate.id, 'completada')}
+            title="Completada"
+            style={{ 
+              background: 'none', 
+              padding: '4px',
+              border: plate.status === 'completada' ? '1px solid #10b981' : '1px solid transparent',
+              borderRadius: '4px',
+              display: 'flex',
+              opacity: plate.status === 'completada' ? 1 : 0.3
+            }}
+          >
+            <CheckCircle2 size={18} color="#10b981" />
+          </button>
+          <button
+            onClick={() => onUpdateStatus(plate.id, 'error')}
+            title="Error"
+            style={{ 
+              background: 'none', 
+              padding: '4px',
+              border: plate.status === 'error' ? '1px solid #ef4444' : '1px solid transparent',
+              borderRadius: '4px',
+              display: 'flex',
+              opacity: plate.status === 'error' ? 1 : 0.3
+            }}
+          >
+            <AlertCircle size={18} color="#ef4444" />
+          </button>
         </div>
       </td>
       <td style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{plate.plate_number}</td>
