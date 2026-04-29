@@ -147,13 +147,24 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    plates.forEach(p => p.tags.forEach(t => tags.add(t)));
+    return Array.from(tags).sort();
+  }, [plates]);
+
   const filteredPlates = useMemo(() => {
     return plates
       .filter(p => {
         const matchesText = p.plate_number.toLowerCase().includes(filter.toLowerCase()) || 
                            p.tags.some(t => t.toLowerCase().includes(filter.toLowerCase()));
         const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-        const matchesTagMode = tagFilterMode === 'all' || p.tags.length === 0;
+        let matchesTagMode = true;
+        if (tagFilterMode === 'no-tag') {
+          matchesTagMode = p.tags.length === 0;
+        } else if (tagFilterMode !== 'all') {
+          matchesTagMode = p.tags.includes(tagFilterMode);
+        }
         return matchesText && matchesStatus && matchesTagMode;
       })
       .sort((a, b) => a.order - b.order);
@@ -187,15 +198,36 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
     e.preventDefault();
     const lines = e.clipboardData.getData('text').split(/\r?\n/).filter(line => line.trim() !== '');
     if (lines.length > 0) {
-      const newEntries: Plate[] = lines.map((line, index) => ({
-        id: crypto.randomUUID(),
-        plate_number: line.trim().toUpperCase(),
-        tags: [],
-        status: 'pendiente',
-        order: plates.length + index
-      }));
-      onPlatesChange([...plates, ...newEntries]);
-      alert(`✅ Se han pegado ${lines.length} placas correctamente.`);
+      const duplicates: string[] = [];
+      const toAdd: Plate[] = [];
+      
+      lines.forEach((line) => {
+        const plateNum = line.trim().toUpperCase();
+        const existing = plates.find(p => p.plate_number === plateNum);
+        
+        if (existing) {
+          const tagInfo = existing.tags.length > 0 ? ` (Etiqueta: ${existing.tags[0]})` : ' (Sin etiqueta)';
+          duplicates.push(`${plateNum}${tagInfo}`);
+        } else {
+          toAdd.push({
+            id: crypto.randomUUID(),
+            plate_number: plateNum,
+            tags: [],
+            status: 'pendiente',
+            order: plates.length + toAdd.length
+          });
+        }
+      });
+
+      if (toAdd.length > 0) {
+        onPlatesChange([...plates, ...toAdd]);
+      }
+
+      let message = `✅ Se han añadido ${toAdd.length} placas nuevas.`;
+      if (duplicates.length > 0) {
+        message += `\n\n⚠️ Se ignoraron ${duplicates.length} duplicadas:\n${duplicates.join('\n')}`;
+      }
+      alert(message);
     }
   };
 
@@ -218,7 +250,17 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
   return (
     <div className="plate-table-container">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-        <form onSubmit={(e) => { e.preventDefault(); if (newPlate) { onPlatesChange([...plates, { id: crypto.randomUUID(), plate_number: newPlate.toUpperCase(), tags: [], status: 'pendiente', order: plates.length }]); setNewPlate(''); } }} style={{ flex: '1 1 100%', display: 'flex', gap: '0.5rem' }}>
+        <form onSubmit={(e) => { e.preventDefault(); if (newPlate) { 
+          const plateNum = newPlate.toUpperCase();
+          const existing = plates.find(p => p.plate_number === plateNum);
+          if (existing) {
+             const tagInfo = existing.tags.length > 0 ? ` (Etiqueta: ${existing.tags[0]})` : ' (Sin etiqueta)';
+             alert(`⚠️ La placa ${plateNum} ya existe${tagInfo}`);
+             return;
+          }
+          onPlatesChange([...plates, { id: crypto.randomUUID(), plate_number: plateNum, tags: [], status: 'pendiente', order: plates.length }]); 
+          setNewPlate(''); 
+        } }} style={{ flex: '1 1 100%', display: 'flex', gap: '0.5rem' }}>
           <input type="text" placeholder="Nueva placa o PEGA LISTA..." value={newPlate} onChange={(e) => setNewPlate(e.target.value)} onPaste={handlePaste} style={{ flex: 1, fontWeight: 'bold' }} />
           <button type="submit"><Plus size={18} /></button>
         </form>
@@ -229,8 +271,11 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
         </div>
 
         <select value={tagFilterMode} onChange={(e) => setTagFilterMode(e.target.value as any)} style={{ padding: '0.5rem' }}>
-          <option value="all">Cualquier Etiqueta</option>
+          <option value="all">Todas las etiquetas</option>
           <option value="no-tag">⚠️ Sin Etiqueta</option>
+          {availableTags.map(tag => (
+            <option key={tag} value={tag}>Etiqueta: {tag}</option>
+          ))}
         </select>
 
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '0.5rem' }}>
