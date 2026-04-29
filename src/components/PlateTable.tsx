@@ -142,11 +142,11 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
 
   const handleApplyBulkTag = () => {
     if (!bulkTag.trim()) return;
-    const newTags = bulkTag.split(',').map(t => t.trim()).filter(t => t !== '');
+    const singleTag = bulkTag.trim().split(',')[0].trim();
     const updated = plates.map(p => {
       const isVisible = filteredPlates.some(fp => fp.id === p.id);
       if (isVisible) {
-        return { ...p, tags: Array.from(new Set([...p.tags, ...newTags])) };
+        return { ...p, tags: [singleTag] };
       }
       return p;
     });
@@ -176,6 +176,7 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
         order: plates.length + index
       }));
       onPlatesChange([...plates, ...newEntries]);
+      alert(`✅ Se han pegado ${lines.length} placas correctamente.`);
     }
   };
 
@@ -186,7 +187,8 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
   };
 
   const updateTags = (id: string, tagString: string) => {
-    const tags = tagString.split(',').map(t => t.trim()).filter(t => t !== '');
+    const singleTag = tagString.trim().split(',')[0].trim();
+    const tags = singleTag ? [singleTag] : [];
     onPlatesChange(plates.map(p => p.id === id ? { ...p, tags } : p));
   };
 
