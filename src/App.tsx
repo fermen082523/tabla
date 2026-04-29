@@ -39,7 +39,9 @@ function App() {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem' }}>Gestor de Placas</h1>
-          <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Conectado como: {session.user.email}</p>
+          <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
+            Conectado como: <strong style={{ color: 'var(--primary-color)' }}>{session.user.email?.split('@')[0]}</strong>
+          </p>
         </div>
         <button onClick={() => supabase.auth.signOut()} style={{ background: '#ef4444' }}>Cerrar Sesión</button>
       </header>

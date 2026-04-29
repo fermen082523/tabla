@@ -49,6 +49,7 @@ const getTagStyle = (tag: string) => {
 
 const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: plate.id });
+  const [isEditing, setIsEditing] = useState(false);
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
@@ -95,22 +96,38 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
           </button>
         </div>
       </td>
-      <td className="plate-number-text" style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+      <td className="plate-number-text">
         {plate.plate_number}
       </td>
-      <td className="no-select">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
-          {plate.tags.map((tag: string, i: number) => (
-            <span key={i} className="no-select" style={getTagStyle(tag)}>{tag}</span>
-          ))}
-        </div>
-        <input
-          type="text"
-          className="tag-input-hidden"
-          defaultValue={plate.tags.join(', ')}
-          onBlur={(e) => onUpdateTags(plate.id, e.target.value)}
-          placeholder="Añadir etiqueta..."
-        />
+      <td className="no-select" onDoubleClick={() => setIsEditing(true)}>
+        {!isEditing ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '24px', alignItems: 'center' }}>
+            {plate.tags.length > 0 ? (
+              plate.tags.map((tag: string, i: number) => (
+                <span key={i} className="no-select" style={getTagStyle(tag)}>{tag}</span>
+              ))
+            ) : (
+              <span style={{ color: '#cbd5e1', fontSize: '0.75rem' }}>Doble clic para etiqueta</span>
+            )}
+          </div>
+        ) : (
+          <input
+            autoFocus
+            type="text"
+            className="tag-input-hidden"
+            defaultValue={plate.tags.join(', ')}
+            onBlur={(e) => {
+              onUpdateTags(plate.id, e.target.value);
+              setIsEditing(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onUpdateTags(plate.id, (e.target as HTMLInputElement).value);
+                setIsEditing(false);
+              }
+            }}
+          />
+        )}
       </td>
       <td className="no-select">
         <button onClick={() => onDelete(plate.id)} style={{ background: 'none', color: '#ef4444' }}>
