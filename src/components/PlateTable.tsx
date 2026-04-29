@@ -96,7 +96,7 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
           </button>
         </div>
       </td>
-      <td className="plate-number-text">
+      <td className="plate-number-text" style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
         {plate.plate_number}
       </td>
       <td className="no-select" onDoubleClick={() => setIsEditing(true)}>
@@ -142,6 +142,7 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
   const [newPlate, setNewPlate] = useState('');
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [tagFilterMode, setTagFilterMode] = useState<'all' | 'no-tag'>('all');
   const [bulkTag, setBulkTag] = useState('');
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
@@ -152,10 +153,11 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
         const matchesText = p.plate_number.toLowerCase().includes(filter.toLowerCase()) || 
                            p.tags.some(t => t.toLowerCase().includes(filter.toLowerCase()));
         const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-        return matchesText && matchesStatus;
+        const matchesTagMode = tagFilterMode === 'all' || p.tags.length === 0;
+        return matchesText && matchesStatus && matchesTagMode;
       })
       .sort((a, b) => a.order - b.order);
-  }, [plates, filter, statusFilter]);
+  }, [plates, filter, statusFilter, tagFilterMode]);
 
   const handleApplyBulkTag = () => {
     if (!bulkTag.trim()) return;
@@ -216,7 +218,7 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
   return (
     <div className="plate-table-container">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-        <form onSubmit={(e) => { e.preventDefault(); if (newPlate) { onPlatesChange([...plates, { id: crypto.randomUUID(), plate_number: newPlate.toUpperCase(), tags: [], status: 'pendiente', order: plates.length }]); setNewPlate(''); } }} style={{ flex: '2 1 300px', display: 'flex', gap: '0.5rem' }}>
+        <form onSubmit={(e) => { e.preventDefault(); if (newPlate) { onPlatesChange([...plates, { id: crypto.randomUUID(), plate_number: newPlate.toUpperCase(), tags: [], status: 'pendiente', order: plates.length }]); setNewPlate(''); } }} style={{ flex: '1 1 100%', display: 'flex', gap: '0.5rem' }}>
           <input type="text" placeholder="Nueva placa o PEGA LISTA..." value={newPlate} onChange={(e) => setNewPlate(e.target.value)} onPaste={handlePaste} style={{ flex: 1, fontWeight: 'bold' }} />
           <button type="submit"><Plus size={18} /></button>
         </form>
@@ -226,15 +228,22 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
           <input type="text" placeholder="Filtrar..." value={filter} onChange={(e) => setFilter(e.target.value)} style={{ flex: 1, fontSize: '0.875rem' }} />
         </div>
 
+        <select value={tagFilterMode} onChange={(e) => setTagFilterMode(e.target.value as any)} style={{ padding: '0.5rem' }}>
+          <option value="all">Cualquier Etiqueta</option>
+          <option value="no-tag">⚠️ Sin Etiqueta</option>
+        </select>
+
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '0.5rem' }}>
-          <option value="all">Todos</option>
+          <option value="all">Cualquier Estado</option>
           <option value="pendiente">Pendientes</option>
           <option value="completada">OK</option>
           <option value="error">Error</option>
         </select>
 
-        <button onClick={onRefresh} style={{ background: '#64748b' }}><RefreshCw size={18} /></button>
-        <button onClick={handleCopyPlates} style={{ background: '#0f172a' }}><Copy size={18} /> Copiar</button>
+        <div style={{ display: 'flex', gap: '0.5rem', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+          <button onClick={onRefresh} style={{ background: '#64748b' }}><RefreshCw size={18} /></button>
+          <button onClick={handleCopyPlates} style={{ background: '#0f172a' }}><Copy size={18} /> Copiar</button>
+        </div>
       </div>
 
       <div className="bulk-actions no-select">
