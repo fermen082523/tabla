@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import type { Plate } from '../types';
-import { GripVertical, Trash2, Copy, Plus, RefreshCw } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import type { Plate, PlateStatus } from '../types';
+import { GripVertical, Trash2, Copy, Plus, RefreshCw, Filter, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -26,48 +26,77 @@ interface PlateTableProps {
   onRefresh: () => void;
 }
 
-interface SortableRowProps {
-  plate: Plate;
-  onDelete: (id: string) => void;
-  onUpdateTags: (id: string, tagString: string) => void;
-}
-
-const SortableRow: React.FC<SortableRowProps> = ({ plate, onDelete, onUpdateTags }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: plate.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+// Lógica de colores por iniciales (Etiquetas)
+const getTagStyle = (tag: string) => {
+  const colors: Record<string, string> = {
+    'C': '#dbeafe', // Azul (Choerry)
+    'K': '#fee2e2', // Rojo (Kim Lip)
+    'J': '#fef9c3', // Amarillo
+    'M': '#dcfce7', // Verde
   };
+  const firstLetter = tag.trim().charAt(0).toUpperCase();
+  return {
+    backgroundColor: colors[firstLetter] || '#f1f5f9',
+    color: '#1e293b',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    marginRight: '4px',
+    border: '1px solid rgba(0,0,0,0.1)'
+  };
+};
+
+const StatusIcon = ({ status }: { status: PlateStatus }) => {
+  switch (status) {
+    case 'completada': return <CheckCircle2 size={18} color="#10b981" />;
+    case 'error': return <AlertCircle size={18} color="#ef4444" />;
+    default: return <Circle size={18} color="#94a3b8" />;
+  }
+};
+
+const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: plate.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
     <tr ref={setNodeRef} style={style}>
       <td>
-        <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}>
+        <div {...attributes} {...listeners} style={{ cursor: 'grab', padding: '0.5rem' }}>
           <GripVertical size={16} color="#94a3b8" />
         </div>
       </td>
-      <td style={{ fontWeight: 'bold' }}>{plate.plate_number}</td>
       <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <StatusIcon status={plate.status} />
+          <select 
+            value={plate.status || 'pendiente'} 
+            onChange={(e) => onUpdateStatus(plate.id, e.target.value as PlateStatus)}
+            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
+          >
+            <option value="pendiente">Pendiente</option>
+            <option value="completada">OK</option>
+            <option value="error">Error</option>
+          </select>
+        </div>
+      </td>
+      <td style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{plate.plate_number}</td>
+      <td>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
+          {plate.tags.map((tag: string, i: number) => (
+            <span key={i} style={getTagStyle(tag)}>{tag}</span>
+          ))}
+        </div>
         <input
           type="text"
           defaultValue={plate.tags.join(', ')}
           onBlur={(e) => onUpdateTags(plate.id, e.target.value)}
-          placeholder="ej. Revisado, Urgente"
-          style={{ width: '100%', border: 'none', background: 'transparent' }}
+          placeholder="Etiquetas (C, K...)"
+          style={{ width: '100%', fontSize: '0.8rem', border: 'none', borderBottom: '1px dashed #ccc' }}
         />
       </td>
       <td>
-        <button 
-          onClick={() => onDelete(plate.id)}
-          style={{ background: 'none', color: '#ef4444', padding: '0.25rem' }}
-        >
+        <button onClick={() => onDelete(plate.id)} style={{ background: 'none', color: '#ef4444' }}>
           <Trash2 size={16} />
         </button>
       </td>
@@ -77,128 +106,103 @@ const SortableRow: React.FC<SortableRowProps> = ({ plate, onDelete, onUpdateTags
 
 export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, onDelete, onRefresh }) => {
   const [newPlate, setNewPlate] = useState('');
+  const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  const filteredPlates = useMemo(() => {
+    return plates
+      .filter(p => {
+        const matchesText = p.plate_number.toLowerCase().includes(filter.toLowerCase()) || 
+                           p.tags.some(t => t.toLowerCase().includes(filter.toLowerCase()));
+        const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+        return matchesText && matchesStatus;
+      })
+      .sort((a, b) => a.order - b.order);
+  }, [plates, filter, statusFilter]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (over && active.id !== over.id) {
       const oldIndex = plates.findIndex((p) => p.id === active.id);
       const newIndex = plates.findIndex((p) => p.id === over.id);
-
-      const reordered = arrayMove(plates, oldIndex, newIndex).map((p, idx) => ({
-        ...p,
-        order: idx,
-      }));
+      const reordered = arrayMove(plates, oldIndex, newIndex).map((p, idx) => ({ ...p, order: idx }));
       onPlatesChange(reordered);
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text');
-    const lines = pastedData.split(/\r?\n/).filter(line => line.trim() !== '');
-    
+    const lines = e.clipboardData.getData('text').split(/\r?\n/).filter(line => line.trim() !== '');
     if (lines.length > 0) {
       const newEntries: Plate[] = lines.map((line, index) => ({
         id: crypto.randomUUID(),
         plate_number: line.trim().toUpperCase(),
         tags: [],
+        status: 'pendiente',
         order: plates.length + index
       }));
       onPlatesChange([...plates, ...newEntries]);
     }
   };
 
-  const handleCopyAll = () => {
-    const textToCopy = plates.map(p => p.plate_number).join('\n');
-    navigator.clipboard.writeText(textToCopy);
-    alert('Placas copiadas al portapapeles');
-  };
-
-  const addSinglePlate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPlate.trim()) return;
-    
-    const entry: Plate = {
-      id: crypto.randomUUID(),
-      plate_number: newPlate.trim().toUpperCase(),
-      tags: [],
-      order: plates.length
-    };
-    onPlatesChange([...plates, entry]);
-    setNewPlate('');
+  const handleCopyPlates = () => {
+    const text = filteredPlates.map(p => p.plate_number).join('\n');
+    navigator.clipboard.writeText(text);
+    alert(`${filteredPlates.length} placas copiadas`);
   };
 
   const updateTags = (id: string, tagString: string) => {
     const tags = tagString.split(',').map(t => t.trim()).filter(t => t !== '');
-    const updated = plates.map(p => p.id === id ? { ...p, tags } : p);
-    onPlatesChange(updated);
+    onPlatesChange(plates.map(p => p.id === id ? { ...p, tags } : p));
+  };
+
+  const updateStatus = (id: string, status: PlateStatus) => {
+    onPlatesChange(plates.map(p => p.id === id ? { ...p, status } : p));
   };
 
   return (
     <div className="plate-table-container">
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-        <form onSubmit={addSinglePlate} style={{ flex: 1, display: 'flex', gap: '0.5rem' }}>
-          <input
-            type="text"
-            placeholder="Añadir placa (o pega una lista aquí)..."
-            value={newPlate}
-            onChange={(e) => setNewPlate(e.target.value)}
-            onPaste={handlePaste}
-            style={{ flex: 1 }}
-          />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+        <form onSubmit={(e) => { e.preventDefault(); if (newPlate) { onPlatesChange([...plates, { id: crypto.randomUUID(), plate_number: newPlate.toUpperCase(), tags: [], status: 'pendiente', order: plates.length }]); setNewPlate(''); } }} style={{ flex: '2 1 300px', display: 'flex', gap: '0.5rem' }}>
+          <input type="text" placeholder="Nueva placa o PEGA LISTA AQUÍ..." value={newPlate} onChange={(e) => setNewPlate(e.target.value)} onPaste={handlePaste} style={{ flex: 1, fontWeight: 'bold' }} />
           <button type="submit"><Plus size={18} /></button>
         </form>
-        <button onClick={onRefresh} title="Refrescar datos" style={{ background: '#64748b' }}>
-          <RefreshCw size={18} />
-        </button>
-        <button onClick={handleCopyAll} title="Copiar todas las placas">
-          <Copy size={18} /> Copiar Todo
-        </button>
+        
+        <div style={{ flex: '1 1 200px', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Filter size={18} color="#64748b" />
+          <input type="text" placeholder="Buscar etiqueta o placa..." value={filter} onChange={(e) => setFilter(e.target.value)} style={{ flex: 1, fontSize: '0.875rem' }} />
+        </div>
+
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '0.5rem' }}>
+          <option value="all">Todos los estados</option>
+          <option value="pendiente">⏳ Pendientes</option>
+          <option value="completada">✅ OK</option>
+          <option value="error">❌ Error</option>
+        </select>
+
+        <button onClick={onRefresh} style={{ background: '#64748b' }}><RefreshCw size={18} /></button>
+        <button onClick={handleCopyPlates} style={{ background: '#0f172a' }}><Copy size={18} /> Copiar Filtradas</button>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <table className="plate-table">
           <thead>
             <tr>
               <th style={{ width: '40px' }}></th>
+              <th style={{ width: '130px' }}>Estado</th>
               <th>Placa</th>
-              <th>Etiquetas (sep. por coma)</th>
-              <th style={{ width: '60px' }}></th>
+              <th>Etiquetas</th>
+              <th style={{ width: '50px' }}></th>
             </tr>
           </thead>
           <tbody>
-            <SortableContext
-              items={plates.map(p => p.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {plates.map((plate) => (
-                <SortableRow 
-                  key={plate.id} 
-                  plate={plate} 
-                  onDelete={onDelete} 
-                  onUpdateTags={updateTags} 
-                />
+            <SortableContext items={filteredPlates.map(p => p.id)} strategy={verticalListSortingStrategy}>
+              {filteredPlates.map((plate) => (
+                <SortableRow key={plate.id} plate={plate} onDelete={onDelete} onUpdateTags={updateTags} onUpdateStatus={updateStatus} />
               ))}
             </SortableContext>
-            {plates.length === 0 && (
-              <tr>
-                <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  No hay placas. Pega una lista en el cuadro de arriba para comenzar.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </DndContext>
