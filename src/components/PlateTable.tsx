@@ -58,17 +58,14 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
           <GripVertical size={16} color="#94a3b8" />
         </div>
       </td>
-      <td>
+      <td className="no-select">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => onUpdateStatus(plate.id, 'pendiente')}
             title="Pendiente"
             style={{ 
-              background: 'none', 
-              padding: '4px',
+              background: 'none', padding: '4px', borderRadius: '4px', display: 'flex',
               border: plate.status === 'pendiente' ? '1px solid #94a3b8' : '1px solid transparent',
-              borderRadius: '4px',
-              display: 'flex',
               opacity: plate.status === 'pendiente' ? 1 : 0.3
             }}
           >
@@ -78,11 +75,8 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
             onClick={() => onUpdateStatus(plate.id, 'completada')}
             title="Completada"
             style={{ 
-              background: 'none', 
-              padding: '4px',
+              background: 'none', padding: '4px', borderRadius: '4px', display: 'flex',
               border: plate.status === 'completada' ? '1px solid #10b981' : '1px solid transparent',
-              borderRadius: '4px',
-              display: 'flex',
               opacity: plate.status === 'completada' ? 1 : 0.3
             }}
           >
@@ -92,11 +86,8 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
             onClick={() => onUpdateStatus(plate.id, 'error')}
             title="Error"
             style={{ 
-              background: 'none', 
-              padding: '4px',
+              background: 'none', padding: '4px', borderRadius: '4px', display: 'flex',
               border: plate.status === 'error' ? '1px solid #ef4444' : '1px solid transparent',
-              borderRadius: '4px',
-              display: 'flex',
               opacity: plate.status === 'error' ? 1 : 0.3
             }}
           >
@@ -115,14 +106,13 @@ const SortableRow = ({ plate, onDelete, onUpdateTags, onUpdateStatus }: any) => 
         </div>
         <input
           type="text"
-          className="no-select"
+          className="tag-input-hidden"
           defaultValue={plate.tags.join(', ')}
           onBlur={(e) => onUpdateTags(plate.id, e.target.value)}
-          placeholder="Etiquetas (C, K...)"
-          style={{ width: '100%', fontSize: '0.8rem', border: 'none', borderBottom: '1px dashed #ccc' }}
+          placeholder="Añadir etiqueta..."
         />
       </td>
-      <td>
+      <td className="no-select">
         <button onClick={() => onDelete(plate.id)} style={{ background: 'none', color: '#ef4444' }}>
           <Trash2 size={16} />
         </button>
@@ -135,6 +125,7 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
   const [newPlate, setNewPlate] = useState('');
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [bulkTag, setBulkTag] = useState('');
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -148,6 +139,20 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
       })
       .sort((a, b) => a.order - b.order);
   }, [plates, filter, statusFilter]);
+
+  const handleApplyBulkTag = () => {
+    if (!bulkTag.trim()) return;
+    const newTags = bulkTag.split(',').map(t => t.trim()).filter(t => t !== '');
+    const updated = plates.map(p => {
+      const isVisible = filteredPlates.some(fp => fp.id === p.id);
+      if (isVisible) {
+        return { ...p, tags: Array.from(new Set([...p.tags, ...newTags])) };
+      }
+      return p;
+    });
+    onPlatesChange(updated);
+    setBulkTag('');
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -191,26 +196,40 @@ export const PlateTable: React.FC<PlateTableProps> = ({ plates, onPlatesChange, 
 
   return (
     <div className="plate-table-container">
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
         <form onSubmit={(e) => { e.preventDefault(); if (newPlate) { onPlatesChange([...plates, { id: crypto.randomUUID(), plate_number: newPlate.toUpperCase(), tags: [], status: 'pendiente', order: plates.length }]); setNewPlate(''); } }} style={{ flex: '2 1 300px', display: 'flex', gap: '0.5rem' }}>
-          <input type="text" placeholder="Nueva placa o PEGA LISTA AQUÍ..." value={newPlate} onChange={(e) => setNewPlate(e.target.value)} onPaste={handlePaste} style={{ flex: 1, fontWeight: 'bold' }} />
+          <input type="text" placeholder="Nueva placa o PEGA LISTA..." value={newPlate} onChange={(e) => setNewPlate(e.target.value)} onPaste={handlePaste} style={{ flex: 1, fontWeight: 'bold' }} />
           <button type="submit"><Plus size={18} /></button>
         </form>
         
         <div style={{ flex: '1 1 200px', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Filter size={18} color="#64748b" />
-          <input type="text" placeholder="Buscar etiqueta o placa..." value={filter} onChange={(e) => setFilter(e.target.value)} style={{ flex: 1, fontSize: '0.875rem' }} />
+          <input type="text" placeholder="Filtrar..." value={filter} onChange={(e) => setFilter(e.target.value)} style={{ flex: 1, fontSize: '0.875rem' }} />
         </div>
 
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '0.5rem' }}>
-          <option value="all">Todos los estados</option>
-          <option value="pendiente">⏳ Pendientes</option>
-          <option value="completada">✅ OK</option>
-          <option value="error">❌ Error</option>
+          <option value="all">Todos</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="completada">OK</option>
+          <option value="error">Error</option>
         </select>
 
         <button onClick={onRefresh} style={{ background: '#64748b' }}><RefreshCw size={18} /></button>
-        <button onClick={handleCopyPlates} style={{ background: '#0f172a' }}><Copy size={18} /> Copiar Filtradas</button>
+        <button onClick={handleCopyPlates} style={{ background: '#0f172a' }}><Copy size={18} /> Copiar</button>
+      </div>
+
+      <div className="bulk-actions no-select">
+        <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Etiquetado Masivo:</span>
+        <input 
+          type="text" 
+          placeholder="Etiqueta para todas las visibles..." 
+          value={bulkTag}
+          onChange={(e) => setBulkTag(e.target.value)}
+          style={{ flex: 1, padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+        />
+        <button onClick={handleApplyBulkTag} style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
+          Aplicar a {filteredPlates.length}
+        </button>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
