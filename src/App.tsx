@@ -67,7 +67,7 @@ function App() {
 }
 
 function AuthForm() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,21 +76,31 @@ function AuthForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
+    // Convertimos el nombre de usuario en un formato que Supabase acepte
+    const email = `${username.toLowerCase().trim()}@tabla.com`;
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
+    if (error) {
+      if (error.message === 'Invalid login credentials') {
+        setError('Usuario o contraseña incorrectos');
+      } else {
+        setError(error.message);
+      }
+    }
     setLoading(false);
   };
 
   return (
     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label htmlFor="email" style={{ fontSize: '0.875rem', fontWeight: 500 }}>Correo Electrónico</label>
+        <label htmlFor="username" style={{ fontSize: '0.875rem', fontWeight: 500 }}>Usuario</label>
         <input
-          id="email"
-          type="email"
-          placeholder="tu@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          id="username"
+          type="text"
+          placeholder="Ej: choerry"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           required
         />
       </div>
@@ -105,7 +115,7 @@ function AuthForm() {
           required
         />
       </div>
-      {error && <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>Error: {error}</p>}
+      {error && <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>{error}</p>}
       <button type="submit" disabled={loading} style={{ marginTop: '0.5rem' }}>
         {loading ? 'Iniciando...' : 'Entrar'}
       </button>
